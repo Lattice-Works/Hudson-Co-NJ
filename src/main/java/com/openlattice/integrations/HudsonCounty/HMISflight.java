@@ -1,11 +1,14 @@
 package com.openlattice.integrations.HudsonCounty;
 
+import com.dataloom.mappers.ObjectMappers;
 import com.openlattice.client.RetrofitFactory;
+import com.openlattice.data.serializers.FullQualifiedNameJacksonSerializer;
 import com.openlattice.edm.EdmApi;
 import com.openlattice.shuttle.Flight;
 import com.openlattice.shuttle.Shuttle;
 import com.openlattice.shuttle.adapter.Row;
-import com.openlattice.shuttle.dates.DateTimeHelper;
+//import com.openlattice.shuttle.dates.DateTimeHelper;
+import com.openlattice.shuttle.dates.JavaDateTimeHelper;
 import com.openlattice.shuttle.dates.TimeZones;
 import com.openlattice.shuttle.payload.Payload;
 import com.openlattice.shuttle.payload.SimplePayload;
@@ -15,9 +18,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import retrofit2.Retrofit;
 
+import java.io.IOException;
 import java.security.SecureRandom;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * @author Kim Engie &lt;kim@openlattice.com&gt;
@@ -27,13 +33,13 @@ public class HMISflight {
     private static final Logger                      logger      = LoggerFactory
             .getLogger( HMISflight.class );
     private static final RetrofitFactory.Environment environment = RetrofitFactory.Environment.LOCAL;
-    private static final DateTimeHelper              dtHelper    = new DateTimeHelper( TimeZones.America_NewYork,
-            "MM/dd/YY" );
+    private static final JavaDateTimeHelper              dtHelper    = new JavaDateTimeHelper( TimeZones.America_NewYork,
+            "M/d/yyyy", "M/dd/yy" );
 
     private static Random r = new SecureRandom();
 
 
-    public static void main( String[] args ) throws InterruptedException {
+    public static void main( String[] args ) throws InterruptedException, IOException {
 
         final String hmisPath = args[ 0 ];
         final String jwtToken = args[ 1 ];
@@ -67,7 +73,7 @@ public class HMISflight {
 
                 .addEntity( "housing" )
                 .to( "HudsonHMISStays" )
-                    .entityIdGenerator(row->row.get("Client ID")+dtHelper.parseDate( row.get( "Admission Date / Project Start Date" ) ))
+//                    .entityIdGenerator(row->row.get("Client ID")+dtHelper.parseDate( row.get( "Admission Date / Project Start Date" ) ))
                 //.addProperty( "general.stringid" ).value( row -> UUID.randomUUID() ).ok()
 //                    .addProperty( "general.stringid", "Client ID")
                     .addProperty( "housing.residentid", "Personal ID" )
@@ -84,7 +90,7 @@ public class HMISflight {
                     .addProperty( "housing.lengthofstay" )
                         .value( row -> Parsers.parseInt( row.getAs( "Length of Program Stay" ) ) ).ok()
                     .addProperty( "ol.datetime_release")
-                        .value( row -> dtHelper.parseDate( row.getAs( "Discharge Date" ))).ok()
+                        .value( row -> dtHelper.parseDateAsDateTime( row.getAs( "Discharge Date" ))).ok()
                     .addProperty( "housing.dischargereason", "Reason for Discharge" )
                     .addProperty( "housing.timelessthan90days", "Time in Institution less than 90 days" )
                     .addProperty( "housing.timeintransitionalorpermanentlessthan7nights", "Time in Transitional or Permanent Housing less than 7 nights" )
@@ -94,7 +100,7 @@ public class HMISflight {
 
                 .addEntity( "address" )
                 .to("HudsonHousingAddresses")
-                    .addProperty( "location.Address")
+                    .addProperty( "general.id")
                         .value( HMISflight::getFulladdress ).ok()
                     .addProperty( "location.street", "Last Permanent Address: Street Address" )
                     .addProperty( "location.city", "Last Permanent Address: City" )
@@ -110,7 +116,7 @@ public class HMISflight {
 
                 .addEntity( "admission_assmt" )
                 .to("HudsonHMISAdmissionAssessments")
-                    .entityIdGenerator(row->row.get("Client ID")+dtHelper.parseDate( row.get( "Admission Date / Project Start Date" ) ))
+//                    .entityIdGenerator(row->row.get("Client ID")+dtHelper.parseDate( row.get( "Admission Date / Project Start Date" ) ))
                     .addProperty( "housing.assessmentid", "Client ID" )
                     .addProperty( "person.gender", "Gender (HMIS)" )
                     .addProperty( "person.sexualorientation", "Sexual Orientation" )
@@ -165,7 +171,7 @@ public class HMISflight {
 
                 .addEntity( "discharge_assmt" )
                 .to("HudsonHMISDischargeAssessments")
-                    .entityIdGenerator(row->row.get("Client ID")+dtHelper.parseDate( row.get( "Admission Date / Project Start Date" ) ))
+//                    .entityIdGenerator(row->row.get("Client ID")+dtHelper.parseDate( row.get( "Admission Date / Project Start Date" ) ))
                     .addProperty( "housing.assessmentid", "Client ID" )
                     .addProperty( "person.gender", "Gender (HMIS)" )
                     .addProperty( "person.sexualorientation", "Sexual Orientation" )
@@ -204,7 +210,7 @@ public class HMISflight {
 
                 .addEntity( "update_assmt" )
                 .to("HudsonHMISUpdateAssessments")
-                    .entityIdGenerator(row->row.get("Client ID")+dtHelper.parseDate( row.get( "Admission Date / Project Start Date" ) ))
+//                    .entityIdGenerator(row->row.get("Client ID")+dtHelper.parseDate( row.get( "Admission Date / Project Start Date" ) ))
                     .addProperty( "housing.assessmentid", "Client ID" )
                     .addProperty( "economy.spousalsupport", "Alimony or other spousal support (Yes/No)  (Update)" )
                     .addProperty( "economy.spousalsupportamount", "Alimony or other spousal support Amount (Update)" )
@@ -232,7 +238,7 @@ public class HMISflight {
                     .fromEntity( "person" )
                     .toEntity( "housing" )
                     .addProperty( "general.stringid" )
-                        .value( row -> row.getAs("Client ID")+dtHelper.parseDate( row.getAs( "Admission Date / Project Start Date" ) )).ok()
+                        .value( HMISflight::getID ).ok()
                         //.value( row -> UUID.randomUUID() ).ok()
                 .endAssociation()
                 .addAssociation( "locatedat" )
@@ -240,7 +246,7 @@ public class HMISflight {
                     .fromEntity( "person" )
                     .toEntity( "address" )
 //                    .entityIdGenerator( row->row.get("Personal ID") )
-                    .addProperty( "nc.SubjectIdentification", "Personal ID" )
+                    .addProperty( "general.id", "Personal ID" )
                 .endAssociation()
                 .addAssociation( "kintiesto" )
                 .to( "Hudsonkintiesto" )
@@ -254,21 +260,21 @@ public class HMISflight {
                 .to( "HudsonAssessedWith" )
                     .fromEntity( "person" )
                     .toEntity( "admission_assmt" )
-                        .entityIdGenerator(row->row.get("Client ID")+dtHelper.parseDate( row.get( "Admission Date / Project Start Date" ) ))
+//                        .entityIdGenerator(row->row.get("Client ID")+dtHelper.parseDate( row.get( "Admission Date / Project Start Date" ) ))
                         .addProperty( "general.stringid", "Personal ID" )
                 .endAssociation()
                 .addAssociation( "assessedwith2" )
                 .to( "HudsonAssessedWith" )
                     .fromEntity( "person" )
                     .toEntity( "discharge_assmt" )
-                .entityIdGenerator(row->row.get("Client ID")+dtHelper.parseDate( row.get( "Admission Date / Project Start Date" ) ))
+//                .entityIdGenerator(row->row.get("Client ID")+dtHelper.parseDate( row.get( "Admission Date / Project Start Date" ) ))
                     .addProperty( "general.stringid", "Personal ID" )
                 .endAssociation()
                 .addAssociation( "assessedwith3" )
                 .to( "HudsonAssessedWith" )
                     .fromEntity( "person" )
                     .toEntity( "update_assmt" )
-                    .entityIdGenerator(row->row.get("Client ID")+dtHelper.parseDate( row.get( "Admission Date / Project Start Date" ) ))
+//                    .entityIdGenerator(row->row.get("Client ID")+dtHelper.parseDate( row.get( "Admission Date / Project Start Date" ) ))
                     .addProperty( "general.stringid", "Personal ID" )
                 .endAssociation()
 
@@ -280,7 +286,12 @@ public class HMISflight {
         Map<Flight, Payload> flights = new HashMap<>( 1 );
         flights.put( hmisflight, payload );
 
-        shuttle.launchPayloadFlight( flights );
+        //shuttle.launchPayloadFlight( flights );
+
+
+        ObjectMapper yaml = ObjectMappers.getYamlMapper();
+        FullQualifiedNameJacksonSerializer.registerWithMapper( yaml );
+        logger.info("This is the JSON for the flight. {}", yaml.writeValueAsString(hmisflight));
     }
 
     public static String getZip( Row row ) {
@@ -401,6 +412,20 @@ public class HMISflight {
         }
         return null;
 
+    }
+
+    public static String getID(Row row) {
+        String clientid = row.getAs( "Client ID" );
+
+        if ( clientid != null ) {
+            LocalDate admitdate = dtHelper.parseDate( row.getAs( "Admission Date / Project Start Date" ) );
+
+            if ( admitdate != null ) {
+                return clientid + admitdate.toString();
+            }
+            return clientid;
+        }
+        return null;
     }
 
 }
