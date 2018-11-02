@@ -1,0 +1,21 @@
+entityDefinitions:
+  HudsonJail:
+    entitySetName: "Hudson_people"
+    propertyDefinitions:
+      nc.SubjectIdentification:
+        type: nc.SubjectIdentification
+        column: "Inmate Key"
+      nc.PersonGivenName:
+        type: "nc.PersonGivenName"
+        column: "First Name"
+      nc.PersonSurName:
+        type: "nc.PersonSurName"
+        column: "Last Name"
+      nc.PersonBirthDate:
+        type: "nc.PersonBirthDate"
+        column: "DOB"
+        transforms:
+        - !<transforms.DateTransform>
+          pattern: ["MM/dd/yy","M/dd/yy","MM/d/yy","M/d/yy"]
+associationDefinitions: {}
+name: "Hudson JAIL"

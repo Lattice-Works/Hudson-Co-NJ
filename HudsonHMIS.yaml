@@ -1,0 +1,51 @@
+entityDefinitions:
+  HudsonHMIS:
+    entitySetName: "Hudson_people"
+    propertyDefinitions:
+      nc.SubjectIdentification:
+        type: nc.SubjectIdentification
+        column: "Personal ID"
+      nc.PersonGivenName:
+        type: "nc.PersonGivenName"
+        column: "First Name"
+      nc.PersonSurName:
+        type: "nc.PersonSurName"
+        column: "Last Name"
+      nc.PersonMiddleName:
+        type: "nc.PersonMiddleName"
+        column: "Middle Name"
+      nc.SSN:
+        type: "nc.SSN"
+        column: "SSN"
+      nc.PersonBirthDate:
+        type: "nc.PersonBirthDate"
+        column: "Date of Birth"
+        transforms:
+        - !<transforms.DateTransform>
+          pattern: ["MM/dd/yy","M/dd/yy","MM/d/yy","M/d/yy"]
+      nc.PersonSex:
+        type: "nc.PersonSex"
+        column: "Gender (HMIS)"
+        transforms:
+        - !<transforms.ReplaceTransform>
+          target: ["Male", "Female", "Trans Male (FTM or Female to Male)", "Trans Female (MTF or Male to Female)"]
+          goal: ['M', "F", "M", "F"]
+          ignoreCase: true
+      nc.PersonRace:
+        type: "nc.PersonRace"
+        column: "Race (HMIS)"
+        transforms:
+        - !<transforms.ReplaceTransform>
+          target: ['Asian', "White", "Black or African American", "American Indian or Alaska Native", "Native Hawaiian or Other Pacific Islander"]
+          goal: ['asian', 'white', 'black', 'amindian', 'pacisland']
+          ignoreCase: true
+      nc.PersonEthnicity:
+        type: "nc.PersonEthnicity"
+        column: "Ethnicity (HMIS)"
+        transforms:
+        - !<transforms.ReplaceTransform>
+          target: ["Hispanic/Latino", "Non-Hispanic/Non-Latino"]
+          goal: ['hispanic', 'nonhispanic']
+          ignoreCase: true
+associationDefinitions: {}
+name: "Hudson HMIS"
